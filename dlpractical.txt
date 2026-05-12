@@ -1,0 +1,229 @@
+#----------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------
+# 1. Botson price prediction 
+#----------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+# Load Boston Housing dataset
+df = pd.read_csv("boston_house_price.csv")
+
+# Input and Output
+X = df.drop("PRICE", axis=1)
+y = df["PRICE"]
+
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Feature Scaling
+scaler = StandardScaler()
+
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Create Deep Neural Network model
+model = Sequential()
+
+# Hidden layers
+model.add(Dense(64, activation='relu', input_shape=(X_train.shape[1],)))
+model.add(Dense(32, activation='relu'))
+
+# Output layer
+model.add(Dense(1))
+
+# Compile model
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+
+# Train model
+model.fit(X_train, y_train, epochs=50, batch_size=32)
+
+# Evaluate model
+loss, mae = model.evaluate(X_test, y_test)
+
+print("Mean Absolute Error:", mae)
+
+#----------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------
+# 2. letter recognisation 
+#----------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.utils import to_categorical
+
+# Load dataset
+data = pd.read_csv("letter_recognition.data", header=None)
+
+# Input features
+X = data.iloc[:, 1:].values
+
+# Output labels
+y = data.iloc[:, 0].values
+
+# Convert letters into numbers
+encoder = LabelEncoder()
+y = encoder.fit_transform(y)
+
+# Convert to categorical
+y = to_categorical(y)
+
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Create Deep Neural Network model
+model = Sequential()
+
+# Hidden layers
+model.add(Dense(64, activation='relu', input_shape=(16,)))
+model.add(Dense(32, activation='relu'))
+
+# Output layer (26 letters)
+model.add(Dense(26, activation='softmax'))
+
+# Compile model
+model.compile(optimizer='adam',
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
+
+# Train model
+model.fit(X_train, y_train,
+          epochs=20,
+          batch_size=32)
+
+# Evaluate model
+loss, accuracy = model.evaluate(X_test, y_test)
+
+print("Accuracy:", accuracy)
+
+
+#----------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------
+# 3. imdb 
+#----------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------
+
+from tensorflow.keras.datasets import imdb
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten, Embedding
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+# Load IMDB dataset
+vocab_size = 10000
+
+(X_train, y_train), (X_test, y_test) = imdb.load_data(num_words=vocab_size)
+
+# Make all reviews same length
+maxlen = 200
+
+X_train = pad_sequences(X_train, maxlen=maxlen)
+X_test = pad_sequences(X_test, maxlen=maxlen)
+
+# Create Deep Neural Network model
+model = Sequential()
+
+# Embedding layer
+model.add(Embedding(vocab_size, 32))
+
+# Flatten layer
+model.add(Flatten())
+
+# Hidden layer
+model.add(Dense(32, activation='relu'))
+
+# Output layer
+model.add(Dense(1, activation='sigmoid'))
+
+# Compile model
+model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+# Train model
+model.fit(
+    X_train,
+    y_train,
+    epochs=5,
+    batch_size=64
+)
+
+# Evaluate model
+loss, accuracy = model.evaluate(X_test, y_test)
+
+# Print accuracy
+print("Accuracy:", accuracy)
+
+#----------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------
+# 4. MNIST CNN
+#----------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------
+
+from tensorflow.keras.datasets import fashion_mnist
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D
+from tensorflow.keras.layers import Flatten, Dense
+from tensorflow.keras.utils import to_categorical
+
+# Load dataset
+(X_train, y_train), (X_test, y_test) = fashion_mnist.load_data()
+
+# Reshape data for CNN
+X_train = X_train.reshape((60000, 28, 28, 1))
+X_test = X_test.reshape((10000, 28, 28, 1))
+
+# Normalize values
+X_train = X_train / 255.0
+X_test = X_test / 255.0
+
+# Convert output labels to categorical
+y_train = to_categorical(y_train)
+y_test = to_categorical(y_test)
+
+# Create CNN model
+model = Sequential()
+
+# Convolution layer
+model.add(Conv2D(32, (3,3), activation='relu',
+                 input_shape=(28,28,1)))
+
+# Pooling layer
+model.add(MaxPooling2D((2,2)))
+
+# Flatten layer
+model.add(Flatten())
+
+# Dense layers
+model.add(Dense(64, activation='relu'))
+
+# Output layer
+model.add(Dense(10, activation='softmax'))
+
+# Compile model
+model.compile(optimizer='adam',
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
+
+# Train model
+model.fit(X_train, y_train,
+          epochs=5,
+          batch_size=64)
+
+# Evaluate model
+loss, accuracy = model.evaluate(X_test, y_test)
+
+print("Accuracy:", accuracy)
