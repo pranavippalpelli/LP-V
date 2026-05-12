@@ -1,0 +1,745 @@
+//-----------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------
+Practical 1
+//-----------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------
+
+#include<iostream>
+#include<vector>
+#include<queue>
+#include<omp.h>
+using namespace std;
+
+class Graph{
+    int V;
+    vector<vector<int>> adj;
+
+public:
+    Graph(int V){
+        this->V = V;
+        adj.resize(V);
+    }
+
+    void addEdge(int u,int v){
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }
+
+    // Parallel BFS
+    void BFS(int start){
+        vector<bool> visited(V,false);
+        queue<int> q;
+
+        visited[start]=true;
+        q.push(start);
+
+        cout<<"\nBFS: ";
+
+        while(!q.empty()){
+            int node=q.front();
+            q.pop();
+
+            cout<<node<<" ";
+
+            #pragma omp parallel for
+            for(int i=0;i<adj[node].size();i++){
+                int n=adj[node][i];
+
+                if(!visited[n]){
+                    visited[n]=true;
+                    #pragma omp critical
+                    q.push(n);
+                }
+            }
+        }
+    }
+
+    // Parallel DFS
+    void DFSUtil(int node, vector<bool>& visited){
+        visited[node]=true;
+        cout<<node<<" ";
+
+        #pragma omp parallel for
+        for(int i=0;i<adj[node].size();i++){
+            int n=adj[node][i];
+
+            if(!visited[n])
+                DFSUtil(n,visited);
+        }
+    }
+
+    void DFS(int start){
+        vector<bool> visited(V,false);
+
+        cout<<"\nDFS: ";
+        DFSUtil(start,visited);
+    }
+};
+
+int main(){
+    int V,E,u,v,start;
+
+    cout<<"Vertices: ";
+    cin>>V;
+
+    Graph g(V);
+
+    cout<<"Edges: ";
+    cin>>E;
+
+    cout<<"Enter edges:\n";
+    for(int i=0;i<E;i++){
+        cin>>u>>v;
+        g.addEdge(u,v);
+    }
+
+    cout<<"Start vertex: ";
+    cin>>start;
+
+    g.BFS(start);
+    g.DFS(start);
+
+    return 0;
+}
+
+
+//-----------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------
+Practical 2
+//-----------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------
+
+#include <bits/stdc++.h>
+#include <omp.h>
+using namespace std;
+
+void bubbleSortSeq(vector<int> &arr)
+{
+    int n = arr.size();
+    for (int i = 0; i < n - 1; i++)
+    {
+        for (int j = 0; j < n - i - 1; j++)
+        {
+            if (arr[j] > arr[j + 1])
+                swap(arr[j], arr[j + 1]);
+        }
+    }
+}
+void bubbleSortPar(vector<int> &arr)
+{
+    int n = arr.size();
+    for (int i = 0; i < n; i++)
+    {
+        #pragma omp parallel for
+        for (int j = 0; j < n - 1; j += 2)
+        {
+            if (arr[j] > arr[j + 1])
+                swap(arr[j], arr[j + 1]);
+        }
+        #pragma omp parallel for
+        for (int j = 1; j < n - 1; j += 2)
+        {
+            if (arr[j] > arr[j + 1])
+                swap(arr[j], arr[j + 1]);
+        }
+    }
+}
+
+void merge(vector<int> &arr, int l, int m, int r)
+{
+    vector<int> temp;
+    int i = l, j = m + 1;
+    while (i <= m && j <= r)
+    {
+
+        if (arr[i] < arr[j])
+            temp.push_back(arr[i++]);
+        else
+            temp.push_back(arr[j++]);
+    }
+    while (i <= m)
+        temp.push_back(arr[i++]);
+    while (j <= r)
+        temp.push_back(arr[j++]);
+    for (int k = l; k <= r; k++)
+        arr[k] = temp[k - l];
+}
+void mergeSortSeq(vector<int> &arr, int l, int r)
+{
+    if (l >= r)
+        return;
+    int m = (l + r) / 2;
+    mergeSortSeq(arr, l, m);
+    mergeSortSeq(arr, m + 1, r);
+    merge(arr, l, m, r);
+}
+void mergeSortPar(vector<int> &arr, int l, int r)
+{
+    if (l >= r)
+        return;
+    int m = (l + r) / 2;
+    #pragma omp parallel sections
+    {
+        #pragma omp section
+        mergeSortPar(arr, l, m);
+        #pragma omp section
+        mergeSortPar(arr, m + 1, r);
+    }
+    merge(arr, l, m, r);
+}
+
+
+int main()
+{
+    int n;
+    cout << "Enter number of elements: ";
+    cin >> n;
+
+    vector<int> arr(n);
+    cout << "Enter elements:\n";
+    for (int i = 0; i < n; i++)
+        cin >> arr[i];
+    vector<int> arr1 = arr, arr2 = arr, arr3 = arr, arr4 = arr;
+
+    double start, end;
+    start = omp_get_wtime();
+    bubbleSortSeq(arr1);
+    end = omp_get_wtime();
+    cout << "\nSequential Bubble Sort Time: " << (end - start) << " sec";
+
+    start = omp_get_wtime();
+    bubbleSortPar(arr2);
+    end = omp_get_wtime();
+    cout << "\nParallel Bubble Sort Time: " << (end - start) << " sec";
+
+    start = omp_get_wtime();
+    mergeSortSeq(arr3, 0, n - 1);
+    end = omp_get_wtime();
+    cout << "\nSequential Merge Sort Time: " << (end - start) << " sec";
+
+    start = omp_get_wtime();
+    mergeSortPar(arr4, 0, n - 1);
+    end = omp_get_wtime();
+    cout << "\nParallel Merge Sort Time: " << (end - start) << " sec";
+
+    cout << "\n\nSorted Array:\n";
+    for (int x : arr4)
+        cout << x << " ";
+    cout << endl;
+    return 0;
+}
+
+
+//-----------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------
+Practical 3
+//-----------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------
+
+
+
+#include <iostream>
+#include <vector>
+#include <omp.h>
+#include <climits>
+using namespace std;
+int main()
+{
+    int n;
+    cout << "Enter number of elements: ";
+    cin >> n;
+    vector<int> arr(n);
+    cout << "Enter elements:\n";
+    for (int i = 0; i < n; i++)
+        cin >> arr[i];
+    int sum = 0;
+    int min_val = INT_MAX;
+    int max_val = INT_MIN;
+    double start, end;
+    start = omp_get_wtime();
+    #pragma omp parallel for reduction(+ : sum) reduction(min : min_val) reduction(max : max_val)
+    for (int i = 0; i < n; i++)
+    {
+        sum += arr[i];
+        if (arr[i] < min_val)
+            min_val = arr[i];
+        if (arr[i] > max_val)
+            max_val = arr[i];
+    }
+    end = omp_get_wtime();
+    double avg = (double)sum / n;
+
+    cout << "\nSum = " << sum;
+    cout << "\nMinimum = " << min_val;
+    cout << "\nMaximum = " << max_val;
+    cout << "\nAverage = " << avg;
+    cout << "\nExecution Time = " << (end - start) << " sec\n";
+    return 0;
+}
+
+
+//-----------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------
+Practical 4
+//-----------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------
+
+
+
+//-----------------------------------------------------------------------------------------------
+vector_addition.cu
+//-----------------------------------------------------------------------------------------------
+
+
+#include <stdio.h>
+
+__global__ void vectorAdd(int *A, int *B, int *C, int n)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (i < n)
+    {
+        C[i] = A[i] + B[i];
+    }
+}
+
+int main()
+{
+    int n;
+
+    printf("Enter size of vector: ");
+    scanf("%d", &n);
+
+    int size = n * sizeof(int);
+
+    int h_A[n], h_B[n], h_C[n];
+
+    // Input Vector A
+    printf("Enter elements of A:\n");
+
+    for (int i = 0; i < n; i++)
+    {
+        scanf("%d", &h_A[i]);
+    }
+
+    // Input Vector B
+    printf("Enter elements of B:\n");
+
+    for (int i = 0; i < n; i++)
+    {
+        scanf("%d", &h_B[i]);
+    }
+
+    int *d_A, *d_B, *d_C;
+
+    // Allocate GPU memory
+    cudaMalloc((void**)&d_A, size);
+    cudaMalloc((void**)&d_B, size);
+    cudaMalloc((void**)&d_C, size);
+
+    // Copy data from CPU to GPU
+    cudaMemcpy(d_A, h_A, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, h_B, size, cudaMemcpyHostToDevice);
+
+    // CUDA configuration
+    int threads = 256;
+    int blocks = (n + threads - 1) / threads;
+
+    // Launch kernel
+    vectorAdd<<<blocks, threads>>>(d_A, d_B, d_C, n);
+
+    // Copy result from GPU to CPU
+    cudaMemcpy(h_C, d_C, size, cudaMemcpyDeviceToHost);
+
+    // Display result
+    printf("\nVector Addition Result:\n");
+
+    for (int i = 0; i < n; i++)
+    {
+        printf("%d ", h_C[i]);
+    }
+
+    printf("\n");
+
+    // Free GPU memory
+    cudaFree(d_A);
+    cudaFree(d_B);
+    cudaFree(d_C);
+
+    return 0;
+}
+
+//-----------------------------------------------------------------------------------------------
+matrix_multiplication.cu
+//-----------------------------------------------------------------------------------------------
+
+#include <stdio.h>
+
+__global__ void matrixMul(int *A, int *B, int *C, int n)
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (row < n && col < n)
+    {
+        int sum = 0;
+
+        for (int k = 0; k < n; k++)
+        {
+            sum += A[row * n + k] * B[k * n + col];
+        }
+
+        C[row * n + col] = sum;
+    }
+}
+
+int main()
+{
+    int m;
+
+    printf("Enter size of square matrix: ");
+    scanf("%d", &m);
+
+    int matrixSize = m * m * sizeof(int);
+
+    int h_MA[m * m], h_MB[m * m], h_MC[m * m];
+
+    // Input Matrix A
+    printf("Enter elements of Matrix A:\n");
+
+    for (int i = 0; i < m * m; i++)
+    {
+        scanf("%d", &h_MA[i]);
+    }
+
+    // Input Matrix B
+    printf("Enter elements of Matrix B:\n");
+
+    for (int i = 0; i < m * m; i++)
+    {
+        scanf("%d", &h_MB[i]);
+    }
+
+    int *d_MA, *d_MB, *d_MC;
+
+    // Allocate GPU memory
+    cudaMalloc((void**)&d_MA, matrixSize);
+    cudaMalloc((void**)&d_MB, matrixSize);
+    cudaMalloc((void**)&d_MC, matrixSize);
+
+    // Copy data CPU to GPU
+    cudaMemcpy(d_MA, h_MA, matrixSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_MB, h_MB, matrixSize, cudaMemcpyHostToDevice);
+
+    // CUDA thread configuration
+    dim3 threadsPerBlock(16, 16);
+    dim3 blocksPerGrid((m + 15) / 16, (m + 15) / 16);
+
+    // Launch kernel
+    matrixMul<<<blocksPerGrid, threadsPerBlock>>>(d_MA, d_MB, d_MC, m);
+
+    // Copy result GPU to CPU
+    cudaMemcpy(h_MC, d_MC, matrixSize, cudaMemcpyDeviceToHost);
+
+    // Print Result Matrix
+    printf("\nMatrix Multiplication Result:\n");
+
+    for (int i = 0; i < m; i++)
+    {
+        for (int j = 0; j < m; j++)
+        {
+            printf("%d ", h_MC[i * m + j]);
+        }
+
+        printf("\n");
+    }
+
+    // Free GPU memory
+    cudaFree(d_MA);
+    cudaFree(d_MB);
+    cudaFree(d_MC);
+
+    return 0;
+}
+
+//-----------------------------------------------------------------------------------------------
+cuda_programs.cu
+//-----------------------------------------------------------------------------------------------
+
+#include <stdio.h>
+
+
+
+// =========================================
+// VECTOR ADDITION KERNEL
+// =========================================
+
+__global__ void vectorAdd(int *A, int *B, int *C, int n)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (i < n)
+    {
+        C[i] = A[i] + B[i];
+    }
+}
+
+
+
+// =========================================
+// MATRIX MULTIPLICATION KERNEL
+// =========================================
+
+__global__ void matrixMul(int *A, int *B, int *C, int n)
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (row < n && col < n)
+    {
+        int sum = 0;
+
+        for (int k = 0; k < n; k++)
+        {
+            sum += A[row * n + k] * B[k * n + col];
+        }
+
+        C[row * n + col] = sum;
+    }
+}
+
+
+
+// =========================================
+// MAIN FUNCTION
+// =========================================
+
+int main()
+{
+
+    // =====================================
+    // VECTOR ADDITION
+    // =====================================
+
+    int n;
+
+    printf("========== VECTOR ADDITION ==========\n");
+
+    printf("Enter size of vector: ");
+    scanf("%d", &n);
+
+    int size = n * sizeof(int);
+
+    int h_A[n], h_B[n], h_C[n];
+
+    printf("Enter elements of Vector A:\n");
+
+    for (int i = 0; i < n; i++)
+    {
+        scanf("%d", &h_A[i]);
+    }
+
+    printf("Enter elements of Vector B:\n");
+
+    for (int i = 0; i < n; i++)
+    {
+        scanf("%d", &h_B[i]);
+    }
+
+    int *d_A, *d_B, *d_C;
+
+    cudaMalloc((void**)&d_A, size);
+    cudaMalloc((void**)&d_B, size);
+    cudaMalloc((void**)&d_C, size);
+
+    cudaMemcpy(d_A, h_A, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, h_B, size, cudaMemcpyHostToDevice);
+
+    int threads = 256;
+    int blocks = (n + threads - 1) / threads;
+
+    vectorAdd<<<blocks, threads>>>(d_A, d_B, d_C, n);
+
+    cudaMemcpy(h_C, d_C, size, cudaMemcpyDeviceToHost);
+
+    printf("\nVector Addition Result:\n");
+
+    for (int i = 0; i < n; i++)
+    {
+        printf("%d ", h_C[i]);
+    }
+
+    printf("\n");
+
+    cudaFree(d_A);
+    cudaFree(d_B);
+    cudaFree(d_C);
+
+
+
+    // =====================================
+    // MATRIX MULTIPLICATION
+    // =====================================
+
+    int m;
+
+    printf("\n========== MATRIX MULTIPLICATION ==========\n");
+
+    printf("Enter size of square matrix: ");
+    scanf("%d", &m);
+
+    int matrixSize = m * m * sizeof(int);
+
+    int h_MA[m * m], h_MB[m * m], h_MC[m * m];
+
+    printf("Enter elements of Matrix A:\n");
+
+    for (int i = 0; i < m * m; i++)
+    {
+        scanf("%d", &h_MA[i]);
+    }
+
+    printf("Enter elements of Matrix B:\n");
+
+    for (int i = 0; i < m * m; i++)
+    {
+        scanf("%d", &h_MB[i]);
+    }
+
+    int *d_MA, *d_MB, *d_MC;
+
+    cudaMalloc((void**)&d_MA, matrixSize);
+    cudaMalloc((void**)&d_MB, matrixSize);
+    cudaMalloc((void**)&d_MC, matrixSize);
+
+    cudaMemcpy(d_MA, h_MA, matrixSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_MB, h_MB, matrixSize, cudaMemcpyHostToDevice);
+
+    dim3 threadsPerBlock(16, 16);
+    dim3 blocksPerGrid((m + 15) / 16, (m + 15) / 16);
+
+    matrixMul<<<blocksPerGrid, threadsPerBlock>>>(d_MA, d_MB, d_MC, m);
+
+    cudaMemcpy(h_MC, d_MC, matrixSize, cudaMemcpyDeviceToHost);
+
+    printf("\nMatrix Multiplication Result:\n");
+
+    for (int i = 0; i < m; i++)
+    {
+        for (int j = 0; j < m; j++)
+        {
+            printf("%d ", h_MC[i * m + j]);
+        }
+
+        printf("\n");
+    }
+
+    cudaFree(d_MA);
+    cudaFree(d_MB);
+    cudaFree(d_MC);
+
+    return 0;
+}
+
+
+
+
+
+
+//-----------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------
+HOW TO RUN THE PRACTICALS
+//-----------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------------------------
+1. Parallel BFS and DFS using OpenMP
+//-----------------------------------------------------------------------------------------------
+
+File Name:
+1_bfs_dfs.cpp
+
+Compile Command:
+g++ 1_bfs_dfs.cpp -fopenmp -o bfsdfs
+
+Run Command:
+./bfsdfs
+
+
+
+//-----------------------------------------------------------------------------------------------
+2. Parallel Bubble Sort and Merge Sort
+//-----------------------------------------------------------------------------------------------
+
+File Name:
+parallel_sort.cpp
+
+Compile Command:
+g++ parallel_sort.cpp -fopenmp -o parallel_sort
+
+Run Command:
+./parallel_sort
+
+
+
+//-----------------------------------------------------------------------------------------------
+3. Parallel Reduction
+(Min, Max, Sum, Average)
+//-----------------------------------------------------------------------------------------------
+
+File Name:
+parallel_reduction.cpp
+
+Compile Command:
+g++ parallel_reduction.cpp -fopenmp -o parallel_reduction
+
+Run Command:
+./parallel_reduction
+
+
+//-----------------------------------------------------------------------------------------------
+4. CUDA Programs
+(Vector Addition + Matrix Multiplication)
+//-----------------------------------------------------------------------------------------------
+
+File Name:
+cuda_programs.cu
+
+Compile Command:
+nvcc cuda_programs.cu -o cuda_programs
+
+Run Command:
+./cuda_programs
+
+
+
+
+4A. CUDA Vector Addition
+
+
+File Name:
+vector_addition.cu
+
+Compile Command:
+nvcc vector_addition.cu -o vector_addition
+
+Run Command:
+./vector_addition
+
+
+
+
+4B. CUDA Matrix Multiplication
+
+
+File Name:
+matrix_multiplication.cu
+
+Compile Command:
+nvcc matrix_multiplication.cu -o matrix_multiplication
+
+Run Command:
+./matrix_multiplication
+
+
